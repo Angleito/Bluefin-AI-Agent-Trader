@@ -1,0 +1,13 @@
+flask==2.0.1
+requests==2.27.1
+python-dotenv==0.19.2
+pytest==7.0.0
+langchain==0.0.267
+anthropic==0.3.0
+pydantic==1.10.8
+numpy==1.23.5
+pandas==1.5.3
+mock==5.0.1
+fastapi==0.95.1
+uvicorn==0.22.0
+selenium==4.8.3 
