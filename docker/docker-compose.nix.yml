@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  bluefin-trader:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.nix
+    container_name: bluefin-ai-agent-trader
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../:/app
+      - ./config:/app/config
+    ports:
+      - "8000:8000"
+    networks:
+      - bluefin-network
+
+  redis:
+    image: redis:alpine
+    container_name: bluefin-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - bluefin-network
+
+networks:
+  bluefin-network:
+    driver: bridge
+
+volumes:
+  redis-data:

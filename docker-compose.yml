@@ -1,0 +1,108 @@
+version: '3.8'
+
+# Common settings for all services
+x-service-defaults: &service-defaults
+  restart: always
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+  networks:
+    - trading-network
+  # Security enhancements
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  # AI Analysis Service
+  ai-analysis:
+    image: mock-ai-analysis:latest
+    container_name: mock-ai-analysis
+    <<: *service-defaults
+    volumes:
+      - ./screenshots:/app/screenshots:ro
+      - ./logs:/app/logs:rw
+      - ./.env:/app/.env:ro
+    environment:
+      - LOG_LEVEL=info
+      - MOCK_AI_KEY=mock_key_12345
+      - CHART_SERVICE_URL=http://chart-service:3333/capture
+    ports:
+      - "5005:5000"
+    depends_on:
+      - chart-service
+
+  # Trading Service
+  trading-service:
+    image: mock-trading-service:latest
+    container_name: mock-trading-service
+    <<: *service-defaults
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./.env:/app/.env:ro
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5000
+      - LOG_LEVEL=info
+      - MOCK_TRADING=true
+    ports:
+      - "5000:5000"
+
+  # Chart Service
+  chart-service:
+    image: mock-chart-service:latest
+    container_name: mock-chart-service
+    <<: *service-defaults
+    volumes:
+      - ./screenshots:/app/screenshots:rw
+      - ./logs:/app/logs:rw
+      - ./.env:/app/.env:ro
+    environment:
+      - PORT=3333
+      - LOG_LEVEL=info
+      - HEADLESS=true
+    ports:
+      - "3333:3333"
+
+  # Webhook Service
+  webhook-service:
+    image: mock-webhook-service:latest
+    container_name: mock-webhook-service
+    <<: *service-defaults
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./.env:/app/.env:ro
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - LOG_LEVEL=info
+      - TRADING_SERVICE_URL=http://trading-service:5000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - trading-service
+
+  # Position Monitor Service
+  position-monitor:
+    image: mock-position-monitor:latest
+    container_name: mock-position-monitor
+    <<: *service-defaults
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./.env:/app/.env:ro
+    environment:
+      - LOG_LEVEL=info
+      - TRADING_SERVICE_URL=http://trading-service:5000
+      - CHART_SERVICE_URL=http://chart-service:3333/capture
+      - AI_ANALYSIS_URL=http://ai-analysis:5000/analyze
+    depends_on:
+      - trading-service
+      - chart-service
+      - ai-analysis
+
+networks:
+  trading-network:
+    driver: bridge 

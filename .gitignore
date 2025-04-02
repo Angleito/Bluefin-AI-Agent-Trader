@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+coverage.xml
+*.cover
+
+# Environment & credentials
+.env
+.env.local
+.env.production
+.env.staging
+secure_secrets/
+credentials.json
+*_key.json
+*_secret*
+*.pem
+*.key
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Nix specific
+result
+result-*
+.direnv/
+.envrc
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Docker & other
+.docker/
+.dockerignore
+.volumes/
+.cache/
+tmp/
+.tmp/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Trading specific
+*.backtest
+*.tradingview
+screenshots/
+charts/ 
