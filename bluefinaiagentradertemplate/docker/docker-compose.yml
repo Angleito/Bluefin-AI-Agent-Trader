@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  trading-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: bluefin-ai-agent-trader
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENV=production
+      - SIMULATION_MODE=true
+    volumes:
+      - ../logs:/app/logs
+      - ../data:/app/data
+      - ../config:/app/config
+    ports:
+      - "8000:8000"
+    networks:
+      - bluefin-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.socket().connect(('localhost', 8000))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  bluefin-network:
+    driver: bridge
