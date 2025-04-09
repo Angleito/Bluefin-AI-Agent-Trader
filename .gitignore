@@ -94,3 +94,30 @@ charts/
 
 # Local configuration
 local_config.json
+bluefin/_account.pdf
+bluefin/_authorize.pdf
+bluefin/_candlestickData.pdf
+bluefin/_exchangeInfo.pdf
+bluefin/_fundingRate.pdf
+bluefin/_marketData.pdf
+bluefin/_masterInfo.pdf
+bluefin/_meta.pdf
+bluefin/_orderbook.pdf
+bluefin/_orders.pdf
+bluefin/_recentTrades.pdf
+bluefin/_userFundingHistory.pdf
+bluefin/_userPosition.pdf
+bluefin/_userTradesHistory.pdf
+bluefin/_userTransferHistory.pdf
+bluefin/Cancel Order Signature.pdf
+bluefin/Client Initialization.pdf
+bluefin/Conventions.pdf
+bluefin/Deposit & Withdraw Funds.pdf
+bluefin/Get & Adjust Leverage.pdf
+bluefin/Installation.pdf
+bluefin/Introduction.pdf
+bluefin/Onboarding Signature & API Authorization.pdf
+bluefin/Order Signature.pdf
+bluefin/Order Statuses & Best Practices.pdf
+bluefin/Orders.pdf
+bluefin/Rate Limits.pdf

@@ -15,14 +15,14 @@
         "risk_management_strategy": "dynamic"
     },
     "api_credentials": {
-        "trading_api_key": "YOUR_TRADING_API_KEY_HERE",
-        "trading_api_secret": "YOUR_TRADING_API_SECRET_HERE",
+        "trading_api_key": "",
+        "trading_api_secret": "",
         "trading_api_passphrase": "",
-        "webhook_secret": "YOUR_WEBHOOK_SECRET_HERE"
+        "webhook_secret": ""
     },
     "bluefin_parameters": {
         "network": "SUI_STAGING",
-        "private_key": "YOUR_BLUEFIN_PRIVATE_KEY_HERE",
+        "private_key": "",
         "exchange": "BLUEFIN",
         "api_url": "https://api.bluefin.io",
         "max_retries": 3,
