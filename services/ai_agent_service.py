@@ -1,52 +1,55 @@
+"""
+AI Agent Service - Handles AI-powered trading signal generation
+
+This module provides a service for generating trading signals using AI models.
+It supports both real API calls to AI services and simulated signal generation.
+"""
+
 import os
 import json
-import asyncio
 import logging
-from typing import Dict, Any, List, Optional
+import random
+import time
+import asyncio
+from typing import Dict, List, Any, Optional, Tuple
+from datetime import datetime, timedelta
 
-import anthropic
-import openai  # For Perplexity
-from core.signal_processor import SignalProcessor
+from ..config.config import config
 
 class AIAgentService:
     """
-    AI Agent Service for generating trading signals using multiple AI models.
-    Handles signal generation, confidence scoring, and model fallback mechanisms.
+    Service for generating trading signals using AI models.
+    Supports both real API calls and simulated signal generation.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self):
         """
         Initialize AI Agent Service with configuration and API clients.
-        
-        :param config: Configuration dictionary for AI models and parameters
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         
-        # Default configuration with fallback
-        self.config = config or {
-            'claude': {
-                'model': 'claude-3-opus-20240229',
-                'max_tokens': 4096,
-                'temperature': 0.7
-            },
-            'perplexity': {
-                'model': 'pplx-7b-online',
-                'max_tokens': 4096,
-                'temperature': 0.7
-            }
-        }
+        # Load configuration
+        self.claude_model = config.get('ai_agent_parameters.claude_model', 'claude-3-opus-20240229')
+        self.claude_max_tokens = int(config.get('ai_agent_parameters.claude_max_tokens', 4096))
+        self.claude_temperature = float(config.get('ai_agent_parameters.claude_temperature', 0.7))
         
-        # Initialize API clients
-        self.claude_client = anthropic.AsyncAnthropic(
-            api_key=os.getenv('ANTHROPIC_API_KEY')
-        )
-        self.perplexity_client = openai.AsyncOpenAI(
-            api_key=os.getenv('PERPLEXITY_API_KEY'),
-            base_url='https://api.perplexity.ai/'
-        )
+        self.perplexity_model = config.get('ai_agent_parameters.perplexity_model', 'pplx-7b-online')
+        self.perplexity_max_tokens = int(config.get('ai_agent_parameters.perplexity_max_tokens', 4096))
+        self.perplexity_temperature = float(config.get('ai_agent_parameters.perplexity_temperature', 0.7))
         
-        # Signal processor for further signal validation
-        self.signal_processor = SignalProcessor()
+        # API keys
+        self.anthropic_api_key = config.get('ai_agent_parameters.anthropic_api_key')
+        self.perplexity_api_key = config.get('ai_agent_parameters.perplexity_api_key')
+        
+        # Simulation configuration
+        self.simulation_mode = config.is_simulation_mode()
+        if self.simulation_mode:
+            self.logger.info("Running in simulation mode")
+        else:
+            self.logger.info("Connecting to AI services")
+            # In a real implementation, you would initialize the AI clients here
+            # self.claude_client = anthropic.AsyncAnthropic(api_key=self.anthropic_api_key)
+            # self.perplexity_client = openai.AsyncOpenAI(api_key=self.perplexity_api_key, base_url='https://api.perplexity.ai/')
         
         # Caching mechanism for frequent analyses
         self.analysis_cache = {}
@@ -58,6 +61,7 @@ class AIAgentService:
     async def generate_trading_signal(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generate a trading signal using AI models with fallback mechanism.
+        In simulation mode, generates a simulated signal.
         
         :param market_data: Market data for analysis
         :return: Trading signal with direction, confidence, and reasoning
@@ -67,149 +71,115 @@ class AIAgentService:
         if cache_key in self.analysis_cache:
             return self.analysis_cache[cache_key]
         
-        # Try Claude first
-        try:
-            signal = await self._generate_claude_signal(market_data)
-        except Exception as claude_error:
-            self.logger.warning(f"Claude signal generation failed: {claude_error}")
-            
-            # Fallback to Perplexity
+        if self.simulation_mode:
+            # Generate simulated signal
+            signal = self._generate_simulated_signal(market_data)
+        else:
+            # Try Claude first
             try:
-                signal = await self._generate_perplexity_signal(market_data)
-            except Exception as perplexity_error:
-                self.logger.error(f"Both Claude and Perplexity signal generation failed: {perplexity_error}")
-                raise RuntimeError("Unable to generate trading signal from AI models")
-        
-        # Validate and process signal
-        validated_signal = self.signal_processor.validate_signal(signal)
+                signal = await self._generate_claude_signal(market_data)
+            except Exception as claude_error:
+                self.logger.warning(f"Claude signal generation failed: {claude_error}")
+                
+                # Fallback to Perplexity
+                try:
+                    signal = await self._generate_perplexity_signal(market_data)
+                except Exception as perplexity_error:
+                    self.logger.error(f"Both Claude and Perplexity signal generation failed: {perplexity_error}")
+                    raise RuntimeError("Unable to generate trading signal from AI models")
         
         # Cache the result
-        self.analysis_cache[cache_key] = validated_signal
+        self.analysis_cache[cache_key] = signal
         
-        return validated_signal
+        return signal
+
+    def _generate_simulated_signal(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generate a simulated trading signal.
+        
+        :param market_data: Market data for analysis
+        :return: Simulated trading signal
+        """
+        # Extract symbol and price
+        symbol = market_data.get('symbol', 'BTCUSDT')
+        price = market_data.get('price', 50000.0)
+        
+        # Generate random signal
+        signal_type = random.choice(['buy', 'sell', 'hold'])
+        confidence = random.uniform(0.6, 0.95)
+        
+        # Generate reasoning based on signal type
+        if signal_type == 'buy':
+            reasoning = [
+                f"The price of {symbol} at {price} shows bullish momentum.",
+                "Technical indicators suggest an upward trend.",
+                "Market sentiment is positive.",
+                "Volume analysis indicates accumulation."
+            ]
+        elif signal_type == 'sell':
+            reasoning = [
+                f"The price of {symbol} at {price} shows bearish momentum.",
+                "Technical indicators suggest a downward trend.",
+                "Market sentiment is negative.",
+                "Volume analysis indicates distribution."
+            ]
+        else:  # hold
+            reasoning = [
+                f"The price of {symbol} at {price} shows sideways movement.",
+                "Technical indicators are neutral.",
+                "Market sentiment is mixed.",
+                "Volume analysis is inconclusive."
+            ]
+        
+        # Add some randomness to the reasoning
+        random.shuffle(reasoning)
+        
+        # Create signal
+        signal = {
+            'signal': signal_type,
+            'confidence': confidence,
+            'reasoning': reasoning,
+            'symbol': symbol,
+            'price': price,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'simulation'
+        }
+        
+        # Add stop loss and take profit recommendations
+        if signal_type == 'buy':
+            signal['stop_loss'] = price * 0.95
+            signal['take_profit'] = price * 1.1
+        elif signal_type == 'sell':
+            signal['stop_loss'] = price * 1.05
+            signal['take_profit'] = price * 0.9
+        
+        return signal
 
     async def _generate_claude_signal(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate trading signal using Claude AI.
+        Generate a trading signal using Claude AI.
         
         :param market_data: Market data for analysis
-        :return: Trading signal
+        :return: Trading signal from Claude
         """
-        claude_config = self.config['claude']
-        prompt = self._build_analysis_prompt(market_data)
+        # In a real implementation, you would call the Claude API here
+        # response = await self.claude_client.messages.create(...)
         
-        for attempt in range(self.max_retries):
-            try:
-                response = await self.claude_client.messages.create(
-                    model=claude_config['model'],
-                    max_tokens=claude_config['max_tokens'],
-                    temperature=claude_config['temperature'],
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                
-                return self._parse_ai_response(response.content[0].text)
-            
-            except Exception as e:
-                self.logger.warning(f"Claude signal generation attempt {attempt + 1} failed: {e}")
-                if attempt == self.max_retries - 1:
-                    raise
-                await asyncio.sleep(self.retry_delay * (attempt + 1))
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
 
     async def _generate_perplexity_signal(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate trading signal using Perplexity AI.
+        Generate a trading signal using Perplexity AI.
         
         :param market_data: Market data for analysis
-        :return: Trading signal
+        :return: Trading signal from Perplexity
         """
-        perplexity_config = self.config['perplexity']
-        prompt = self._build_analysis_prompt(market_data)
+        # In a real implementation, you would call the Perplexity API here
+        # response = await self.perplexity_client.chat.completions.create(...)
         
-        for attempt in range(self.max_retries):
-            try:
-                response = await self.perplexity_client.chat.completions.create(
-                    model=perplexity_config['model'],
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=perplexity_config['max_tokens'],
-                    temperature=perplexity_config['temperature']
-                )
-                
-                return self._parse_ai_response(response.choices[0].message.content)
-            
-            except Exception as e:
-                self.logger.warning(f"Perplexity signal generation attempt {attempt + 1} failed: {e}")
-                if attempt == self.max_retries - 1:
-                    raise
-                await asyncio.sleep(self.retry_delay * (attempt + 1))
-
-    def _build_analysis_prompt(self, market_data: Dict[str, Any]) -> str:
-        """
-        Build a comprehensive prompt for AI market analysis.
-        
-        :param market_data: Market data dictionary
-        :return: Formatted prompt string
-        """
-        return f"""
-        Perform a detailed market analysis and provide a precise trading signal.
-        
-        Market Data:
-        - Symbol: {market_data.get('symbol', 'N/A')}
-        - Current Price: {market_data.get('price', 'N/A')}
-        - Technical Indicators: {json.dumps(market_data.get('indicators', {}))}
-        - Historical Data: {json.dumps(market_data.get('historical_data', []))}
-        
-        Analysis Requirements:
-        1. Determine trading direction (buy/sell/hold)
-        2. Provide confidence score (0-1 scale)
-        3. Explain reasoning behind the signal
-        
-        Response Format (JSON):
-        {{
-            "direction": "buy|sell|hold",
-            "confidence": 0.0-1.0,
-            "reasoning": "Detailed explanation of analysis"
-        }}
-        """
-
-    def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
-        """
-        Parse AI response, extracting signal information.
-        
-        :param response_text: Raw text response from AI
-        :return: Parsed signal dictionary
-        """
-        try:
-            # Try direct JSON parsing
-            return json.loads(response_text)
-        except json.JSONDecodeError:
-            # Fallback to extracting signal from text
-            return self._extract_signal_from_text(response_text)
-
-    def _extract_signal_from_text(self, text: str) -> Dict[str, Any]:
-        """
-        Extract trading signal from unstructured text.
-        
-        :param text: Unstructured text response
-        :return: Extracted signal dictionary
-        """
-        # Implement advanced text parsing logic
-        # This is a placeholder and should be enhanced with NLP techniques
-        default_signal = {
-            "direction": "hold",
-            "confidence": 0.5,
-            "reasoning": "Unable to parse precise signal from AI response"
-        }
-        
-        # Basic keyword matching
-        text = text.lower()
-        if "buy" in text:
-            default_signal["direction"] = "buy"
-            default_signal["confidence"] = 0.7
-        elif "sell" in text:
-            default_signal["direction"] = "sell"
-            default_signal["confidence"] = 0.7
-        
-        return default_signal
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
 
     def _generate_cache_key(self, market_data: Dict[str, Any]) -> str:
         """
@@ -218,10 +188,16 @@ class AIAgentService:
         :param market_data: Market data dictionary
         :return: Unique cache key
         """
-        return json.dumps(market_data, sort_keys=True)
+        # Create a copy of market data without timestamp
+        cache_data = market_data.copy()
+        cache_data.pop('timestamp', None)
+        
+        # Generate key
+        return json.dumps(cache_data, sort_keys=True)
 
     def clear_cache(self):
         """
         Clear the analysis cache to prevent stale data.
         """
         self.analysis_cache.clear()
+        self.logger.info("Analysis cache cleared")

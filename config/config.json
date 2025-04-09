@@ -15,15 +15,23 @@
         "risk_management_strategy": "dynamic"
     },
     "api_credentials": {
-        "trading_api_key": "YOUR_TRADING_API_KEY",
-        "trading_api_secret": "YOUR_TRADING_API_SECRET",
+        "trading_api_key": "YOUR_TRADING_API_KEY_HERE",
+        "trading_api_secret": "YOUR_TRADING_API_SECRET_HERE",
         "trading_api_passphrase": "",
-        "webhook_secret": "YOUR_WEBHOOK_SECRET"
+        "webhook_secret": "YOUR_WEBHOOK_SECRET_HERE"
+    },
+    "bluefin_parameters": {
+        "network": "SUI_STAGING",
+        "private_key": "YOUR_BLUEFIN_PRIVATE_KEY_HERE",
+        "exchange": "BLUEFIN",
+        "api_url": "https://api.bluefin.io",
+        "max_retries": 3,
+        "retry_delay": 1.0
     },
     "ai_agent_parameters": {
-        "model_name": "gpt-4",
+        "model_name": "claude-3-opus-20240229",
         "temperature": 0.7,
-        "max_tokens": 150,
+        "max_tokens": 4096,
         "decision_confidence_threshold": 0.8
     },
     "logging_parameters": {
@@ -33,8 +41,16 @@
         "log_rotation": true
     },
     "notification_parameters": {
-        "email_notifications": true,
+        "email_notifications": false,
         "telegram_notifications": false,
         "notification_frequency": "on_trade"
+    },
+    "simulation_parameters": {
+        "enabled": true,
+        "initial_balance": 10000,
+        "volatility": 0.05,
+        "trend": 0.01,
+        "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT"],
+        "tick_interval": 5
     }
 }
