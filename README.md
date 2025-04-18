@@ -28,6 +28,47 @@ The Bluefin AI Agent Trader is built with a modular, service-oriented architectu
 - **Bluefin Service**: Handles direct interactions with the Bluefin exchange, manages API communications, authentication, and transaction processing.
 - **AI Agent Service**: Manages AI model interactions, processes and generates trading recommendations, and supports continuous learning and strategy optimization.
 - **Position Service**: Tracks and manages open positions, provides real-time position analytics, and supports portfolio management.
+- **TradingView Integration Service**: Processes and validates incoming webhook alerts from TradingView charts and indicators, complementing AI-generated signals.
+
+## TradingView Integration
+
+The Bluefin AI Agent Trader features a robust integration with TradingView's advanced charting and technical analysis capabilities:
+
+### Current Integration
+
+- **Webhook Alert Processing**: Receives and processes technical indicator alerts from TradingView
+- **Signal Correlation**: Combines TradingView technical signals with AI-generated predictions
+- **Pattern Recognition**: Leverages TradingView's chart pattern identification capabilities
+- **Custom Pine Script Support**: Works with custom TradingView indicators
+
+### Refinement Strategies
+
+To enhance the TradingView integration, the following refinements are being implemented:
+
+#### 1. Webhook Reliability Enhancements
+- Queue system (RabbitMQ/Redis) for handling high-volume alert periods
+- Webhook authentication to prevent unauthorized signals
+- Idempotency implementation to prevent duplicate trade executions
+
+#### 2. Signal Processing Improvements
+- Dedicated TradingView Signal Processor with validation and normalization
+- Signal debouncing to filter rapid conflicting alerts
+- Configurable time validity windows for incoming signals
+
+#### 3. AI Integration Optimization
+- Signal weighting system balancing TradingView and AI model outputs
+- Configuration panel for adjusting signal influence parameters
+- Correlation analysis to identify complementary signal patterns
+
+#### 4. Indicator Optimization
+- Machine learning for TradingView indicator parameter optimization
+- Performance-based feedback loop for indicator configuration
+- Custom Pine Script indicators tailored to specific trading strategies
+
+#### 5. Testing Framework
+- Backtesting capability for historical TradingView alerts
+- Shadow mode for evaluation without execution
+- A/B testing for different alert configurations
 
 ## How the AI Agent Works: Step-by-Step Workflow
 
