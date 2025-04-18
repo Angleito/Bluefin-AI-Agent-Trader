@@ -66,10 +66,6 @@ The Bluefin AI Agent Trader operates as an event-driven, modular system. Below i
 9. **Notification & Alerts (Optional)**
     - The bot can send notifications via email, Telegram, or webhook on significant events (trade executed, risk alert, error, etc.).
 
-This workflow ensures a robust, automated trading lifecycle, from data ingestion to trade execution and post-trade monitoring, leveraging the full power of modular AI-driven services.
-
----
-
 ## Prerequisites
 
 - Python 3.9+
@@ -103,12 +99,6 @@ nix develop  # Enter development environment
 docker-compose build
 docker-compose up -d
 ```
-
-## Architecture
-
-The Bluefin AI Agent Trader is built with a modular, service-oriented architecture:
-
-### Core Components
 
 1. **Trade Executor**: Executes trading strategies, manages trade entry and exit points, and implements risk management protocols.
 2. **Signal Processor**: Analyzes market data, generates trading signals, and integrates AI-driven insights.
