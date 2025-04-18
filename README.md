@@ -1,6 +1,6 @@
 # Bluefin AI Agent Trader
 
-## How the AI Agent Works: Step-by-Step Workflow
+## Overview
 
 The Bluefin AI Agent Trader is an advanced, modular trading bot designed to interact with the Bluefin exchange on the SUI blockchain. Leveraging artificial intelligence and sophisticated trading strategies, this bot provides an intelligent and flexible solution for cryptocurrency trading.
 
@@ -13,92 +13,11 @@ The Bluefin AI Agent Trader is an advanced, modular trading bot designed to inte
 - **Secure Deployment**: Docker and Nix-based infrastructure with robust security practices
 - **Monitoring and Logging**: Integrated monitoring with Prometheus and Grafana
 
-### Architecture
+## Architecture
 
 The Bluefin AI Agent Trader is built with a modular, service-oriented architecture:
 
-#### Core Components
-
-1. **Trade Executor**: Executes trading strategies, manages trade entry and exit points, and implements risk management protocols.
-2. **Signal Processor**: Analyzes market data, generates trading signals, and integrates AI-driven insights.
-3. **Risk Manager**: Monitors and manages trading risks, implements stop-loss and take-profit mechanisms, and ensures capital preservation.
-
-#### Services
-- **Bluefin Service**: Handles direct interactions with the Bluefin exchange, manages API communications, authentication, and transaction processing.
-- **AI Agent Service**: Manages AI model interactions, processes and generates trading recommendations, and supports continuous learning and strategy optimization.
-- **Position Service**: Tracks and manages open positions, provides real-time position analytics, and supports portfolio management.
-
-### How the Bot Works
-
-The Bluefin AI Agent Trader operates as an event-driven, modular system. Below is a comprehensive overview of its workflow:
-
-1. **Initialization**
-    - The bot loads configuration from environment variables and JSON files.
-    - All core services (AI Agent, Trade Executor, Position Service, Risk Manager) are initialized.
-    - API credentials and trading parameters are validated.
-2. **Data Collection**
-    - The bot continuously fetches real-time market data from the Bluefin exchange via the Bluefin Service.
-    - Historical and live price data, order book snapshots, and account balances are gathered for analysis.
-3. **Signal Generation (AI Agent Service)**
-    - The AI Agent Service processes incoming market data and context.
-    - Multiple AI models (e.g., Claude, Perplexity, GPT) are queried to generate trading signals (buy, sell, hold).
-    - Signals are scored for confidence and filtered for quality; fallback mechanisms are used if a model fails.
-4. **Strategy Orchestration (Strategy Service)**
-    - The Strategy Service interprets AI signals and applies predefined or custom trading strategies.
-    - Strategies may include trend following, mean reversion, arbitrage, or machine learning-based prediction.
-    - The service determines trade size, entry/exit points, and risk exposure.
-5. **Risk Management (Risk Manager)**
-    - Every potential trade is evaluated for risk using the Risk Manager.
-    - Position sizing, stop-loss, take-profit, and trailing stop parameters are calculated.
-    - The system ensures that risk limits and capital preservation rules are enforced before any trade is placed.
-6. **Trade Execution (Trade Executor)**
-    - Validated trade signals are sent to the Trade Executor.
-    - The Trade Executor places orders on the Bluefin exchange using the API, supporting market and limit orders.
-    - Order status is monitored; failed or partial orders are retried or canceled according to configuration.
-7. **Position Monitoring (Position Service)**
-    - All open positions are tracked in real time.
-    - The bot periodically checks position health, unrealized PnL, margin requirements, and risk exposure.
-    - If a position requires adjustment (e.g., stop-loss hit, risk threshold breached), the Position Service triggers partial or full closure, or updates stop parameters.
-8. **Logging and Monitoring**
-    - All actions, trades, and errors are logged to file and (optionally) external monitoring systems.
-    - Prometheus metrics are exposed for system health and performance tracking.
-    - Grafana dashboards provide visualization of trading activity and key metrics.
-9. **Notification & Alerts (Optional)**
-    - The bot can send notifications via email, Telegram, or webhook on significant events (trade executed, risk alert, error, etc.).
-
-## Prerequisites
-
-- Python 3.9+
-- Nix (recommended for dependency management)
-- Docker (optional, for containerized deployment)
-- Bluefin Exchange API Credentials
-
-## Installation
-
-### Local Development
-
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/yourusername/bluefin-ai-agent-trader.git
-    cd bluefin-ai-agent-trader
-    ```
-2. Install dependencies using Poetry:
-    ```bash
-    poetry install
-    ```
-
-### Nix-based Setup
-
-```bash
-nix develop  # Enter development environment
-```
-
-### Docker Deployment
-
-```bash
-docker-compose build
-docker-compose up -d
-```
+### Core Components
 
 1. **Trade Executor**: Executes trading strategies, manages trade entry and exit points, and implements risk management protocols.
 2. **Signal Processor**: Analyzes market data, generates trading signals, and integrates AI-driven insights.
@@ -110,7 +29,7 @@ docker-compose up -d
 - **AI Agent Service**: Manages AI model interactions, processes and generates trading recommendations, and supports continuous learning and strategy optimization.
 - **Position Service**: Tracks and manages open positions, provides real-time position analytics, and supports portfolio management.
 
-## How the Bot Works: Step-by-Step Workflow
+## How the AI Agent Works: Step-by-Step Workflow
 
 The Bluefin AI Agent Trader operates as an event-driven, modular system. Below is a comprehensive overview of its workflow:
 
@@ -158,6 +77,42 @@ The Bluefin AI Agent Trader operates as an event-driven, modular system. Below i
 
 This workflow ensures a robust, automated trading lifecycle, from data ingestion to trade execution and post-trade monitoring, leveraging the full power of modular AI-driven services.
 
+---
+
+## Prerequisites
+
+- Python 3.9+
+- Nix (recommended for dependency management)
+- Docker (optional, for containerized deployment)
+- Bluefin Exchange API Credentials
+
+## Installation
+
+### Local Development
+
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/yourusername/bluefin-ai-agent-trader.git
+    cd bluefin-ai-agent-trader
+    ```
+2. Install dependencies using Poetry:
+    ```bash
+    poetry install
+    ```
+
+### Nix-based Setup
+
+```bash
+nix develop  # Enter development environment
+```
+
+### Docker Deployment
+
+```bash
+docker-compose build
+docker-compose up -d
+```
+
 ## Configuration
 
 1. Copy `.env.template` to `.env`
@@ -199,6 +154,14 @@ The bot supports multiple trading strategies:
 The project includes integrated monitoring with:
 - Prometheus for metrics collection
 - Grafana for visualization and dashboards
+
+## Conclusion
+
+The Bluefin AI Agent Trader represents a sophisticated approach to cryptocurrency trading on the SUI blockchain, combining the power of artificial intelligence with robust risk management and modular design. By following this documentation, you can deploy and configure the bot to suit your trading strategy and risk tolerance.
+
+## Support
+
+For issues, feature requests, or support, please open an issue on the GitHub repository.
 
 Access Grafana at `http://localhost:3000`
 
