@@ -1,154 +1,188 @@
-# Bluefin AI Agent Trader Template
+# Bluefin AI Agent Trader
 
-A template for building AI-powered trading agents for the Bluefin exchange on the Sui network. This template provides a foundation for developing algorithmic trading strategies using AI models for signal generation.
+## Overview
 
-## 🚀 Features
+Bluefin AI Agent Trader is an advanced, modular trading bot designed to interact with the Bluefin exchange on the SUI blockchain. Leveraging artificial intelligence and sophisticated trading strategies, this bot provides an intelligent and flexible solution for cryptocurrency trading.
 
-- **AI-Powered Trading**: Leverage AI models for trading signal generation
-- **Simulation Mode**: Test strategies in a simulated environment before risking real funds
-- **Risk Management**: Built-in risk management with stop-loss and take-profit mechanisms
-- **Docker & Nix Integration**: Completely isolated dependencies for production deployment
-- **Modular Architecture**: Easily extend and customize components for your specific needs
+## Key Features
 
-## 📋 Prerequisites
+- **AI-Powered Trading**: Utilizes advanced AI algorithms to make informed trading decisions
+- **Modular Architecture**: Flexible, service-based design for easy extensibility
+- **Blockchain Integration**: Seamless interaction with the Bluefin exchange on the SUI blockchain
+- **Comprehensive Risk Management**: Built-in risk assessment and mitigation strategies
+- **Secure Deployment**: Docker and Nix-based infrastructure with robust security practices
+- **Monitoring and Logging**: Integrated monitoring with Prometheus and Grafana
 
-- Python 3.10+
-- Docker and Docker Compose (for containerized deployment)
-- Nix with flakes enabled (optional, for reproducible builds)
+## Prerequisites
 
-## 🛠️ Quick Start
+- Python 3.9+
+- Nix (recommended for dependency management)
+- Docker (optional, for containerized deployment)
+- Bluefin Exchange API Credentials
 
-### 1. Clone the Repository
+## Installation
 
-```bash
-git clone https://github.com/yourusername/bluefin-ai-agent-trader-template.git
-cd bluefin-ai-agent-trader-template
-```
+### Local Development
 
-### 2. Set Up Environment
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/yourusername/bluefin-ai-agent-trader.git
+    cd bluefin-ai-agent-trader
+    ```
+2. Install dependencies using Poetry:
+    ```bash
+    poetry install
+    ```
 
-Create a `.env` file from the template:
-
-```bash
-cp .env.template .env
-```
-
-Edit the `.env` file to configure your environment. For testing, you can leave the default values which will run in simulation mode.
-
-### 3. Install Dependencies
-
-Using pip:
+### Nix-based Setup
 
 ```bash
-pip install -r requirements.txt
+nix develop  # Enter development environment
 ```
 
-Using Poetry:
+### Docker Deployment
 
 ```bash
-poetry install
+docker-compose build
+docker-compose up -d
 ```
 
-### 4. Run in Simulation Mode
+## Architecture
 
-```bash
-python main.py
-```
+The Bluefin AI Agent Trader is built with a modular, service-oriented architecture:
 
-This will start the trading agent in simulation mode, which doesn't require any API keys or real funds.
+### Core Components
 
-### 5. Docker Deployment
-
-```bash
-docker-compose -f docker/docker-compose.yml up -d
-```
-
-## 🏗️ Architecture
-
-The template is organized into several key components:
+1. **Trade Executor**: Executes trading strategies, manages trade entry and exit points, and implements risk management protocols.
+2. **Signal Processor**: Analyzes market data, generates trading signals, and integrates AI-driven insights.
+3. **Risk Manager**: Monitors and manages trading risks, implements stop-loss and take-profit mechanisms, and ensures capital preservation.
 
 ### Services
 
-- **BluefinService**: Handles interaction with the Bluefin exchange API
-- **AIAgentService**: Generates trading signals using AI models
-- **StrategyService**: Orchestrates trading strategies and execution
+- **Bluefin Service**: Handles direct interactions with the Bluefin exchange, manages API communications, authentication, and transaction processing.
+- **AI Agent Service**: Manages AI model interactions, processes and generates trading recommendations, and supports continuous learning and strategy optimization.
+- **Position Service**: Tracks and manages open positions, provides real-time position analytics, and supports portfolio management.
 
-### Configuration
+## How the Bot Works: Step-by-Step Workflow
 
-- **Config**: Manages configuration from environment variables and JSON files
+The Bluefin AI Agent Trader operates as an event-driven, modular system. Below is a comprehensive overview of its workflow:
 
-### Utilities
+### 1. Initialization
+- The bot loads configuration from environment variables and JSON files.
+- All core services (AI Agent, Trade Executor, Position Service, Risk Manager) are initialized.
+- API credentials and trading parameters are validated.
 
-- **Logging**: Comprehensive logging for monitoring and debugging
-- **Risk Management**: Tools for managing trading risk
+### 2. Data Collection
+- The bot continuously fetches real-time market data from the Bluefin exchange via the Bluefin Service.
+- Historical and live price data, order book snapshots, and account balances are gathered for analysis.
 
-## 🔧 Customization
+### 3. Signal Generation (AI Agent Service)
+- The AI Agent Service processes incoming market data and context.
+- Multiple AI models (e.g., Claude, Perplexity, GPT) are queried to generate trading signals (buy, sell, hold).
+- Signals are scored for confidence and filtered for quality; fallback mechanisms are used if a model fails.
 
-### Adding New Strategies
+### 4. Strategy Orchestration (Strategy Service)
+- The Strategy Service interprets AI signals and applies predefined or custom trading strategies.
+- Strategies may include trend following, mean reversion, arbitrage, or machine learning-based prediction.
+- The service determines trade size, entry/exit points, and risk exposure.
 
-1. Create a new strategy class in `services/strategies/`
-2. Implement the strategy interface
-3. Register the strategy in the `StrategyService`
+### 5. Risk Management (Risk Manager)
+- Every potential trade is evaluated for risk using the Risk Manager.
+- Position sizing, stop-loss, take-profit, and trailing stop parameters are calculated.
+- The system ensures that risk limits and capital preservation rules are enforced before any trade is placed.
 
-### Integrating Different AI Models
+### 6. Trade Execution (Trade Executor)
+- Validated trade signals are sent to the Trade Executor.
+- The Trade Executor places orders on the Bluefin exchange using the API, supporting market and limit orders.
+- Order status is monitored; failed or partial orders are retried or canceled according to configuration.
 
-1. Extend the `AIAgentService` with your model integration
-2. Implement the signal generation interface
-3. Configure the model parameters in `.env` or `config.json`
+### 7. Position Monitoring (Position Service)
+- All open positions are tracked in real time.
+- The bot periodically checks position health, unrealized PnL, margin requirements, and risk exposure.
+- If a position requires adjustment (e.g., stop-loss hit, risk threshold breached), the Position Service triggers partial or full closure, or updates stop parameters.
 
-## 🔒 Security Best Practices
+### 8. Logging and Monitoring
+- All actions, trades, and errors are logged to file and (optionally) external monitoring systems.
+- Prometheus metrics are exposed for system health and performance tracking.
+- Grafana dashboards provide visualization of trading activity and key metrics.
 
-1. **Never commit sensitive information** like API keys or private keys to version control
-2. Use environment variables or secure secret management for credentials
-3. Run the application with minimal permissions
-4. Regularly update dependencies to patch security vulnerabilities
+### 9. Notification & Alerts (Optional)
+- The bot can send notifications via email, Telegram, or webhook on significant events (trade executed, risk alert, error, etc.).
 
-## 🚢 Production Deployment
+This workflow ensures a robust, automated trading lifecycle, from data ingestion to trade execution and post-trade monitoring, leveraging the full power of modular AI-driven services.
 
-For production deployment, we recommend using the Nix-based Docker setup:
+## Configuration
+
+1. Copy `.env.template` to `.env`
+2. Fill in your Bluefin API credentials and other configuration parameters
+
+### Configuration Options
+
+- `BLUEFIN_API_KEY`: Your Bluefin exchange API key
+- `TRADING_STRATEGY`: Select from predefined strategies or create custom
+- `RISK_TOLERANCE`: Set risk management parameters
+- `AI_MODEL_CONFIG`: Configure AI model settings
+
+## Usage
+
+### Running the Trader
 
 ```bash
-# Build the Docker image using Nix
-cd nix
-nix build .#docker-image
-
-# Load the Docker image
-docker load < result
-
-# Run with Docker Compose
-docker-compose -f docker/docker-compose.yml up -d
+python bluefin_trader.py
 ```
 
-## 📊 Monitoring
+### Example Trading Strategies
 
-The template includes basic monitoring capabilities:
+The bot supports multiple trading strategies:
+- Trend Following
+- Mean Reversion
+- Arbitrage
+- Machine Learning-based Prediction
 
-- Logs are written to `logs/trader.log`
-- Performance metrics are tracked and can be exposed via API
-- Prometheus integration for metrics collection (optional)
+## Security Considerations
 
-## 🧪 Testing
+- Never commit sensitive information to version control
+- Use external secret management
+- Rotate API keys regularly
+- Implement read-only file systems
+- Use non-root containers
 
-Run the test suite:
+## Monitoring
+
+The project includes integrated monitoring with:
+- Prometheus for metrics collection
+- Grafana for visualization and dashboards
+
+Access Grafana at `http://localhost:3000`
+
+## Deployment
+
+### Nix Deployment
 
 ```bash
-pytest
+./scripts/deploy-nix.sh
 ```
 
-## 📝 License
+### Docker Deployment
 
-This template is released under the MIT License. See the LICENSE file for details.
+```bash
+docker-compose up -d
+```
 
-## ⚠️ Disclaimer
-
-This software is provided for educational and research purposes only. Trading cryptocurrencies involves significant risk. Always do your own research before trading with real funds.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## Support
+
+For issues, feature requests, or support, please open an issue on the GitHub repository.
+
+---
