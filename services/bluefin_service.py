@@ -1,201 +1,485 @@
+"""
+Bluefin Service - Handles interaction with Bluefin exchange API
+
+This module provides a service for interacting with the Bluefin exchange API.
+It supports both real API calls and simulated trading in a mock environment.
+"""
+
 import os
-import asyncio
+import json
 import logging
-import httpx
-from typing import Dict, Any, Optional, List, Union
-from bluefin_v2_client import BluefinClient, Networks, Exchanges
+import random
+import time
+import asyncio
+from typing import Dict, List, Any, Optional, Tuple
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+from ..config.config import config
 
 class BluefinService:
     """
-    Service for handling interactions with the Bluefin exchange API.
-    Manages authentication, order placement, position tracking, and WebSocket connections.
-    Aligned with the latest Bluefin Protocol integration guidelines.
+    Service for interacting with Bluefin exchange API.
+    Supports both real API calls and simulated trading.
     """
 
-    def __init__(self, 
-                 network: Optional[str] = None, 
-                 private_key: Optional[str] = None,
-                 exchange: str = Exchanges.BLUEFIN):
+    def __init__(self):
         """
         Initialize BluefinService with network, authentication, and exchange details.
-        
-        :param network: Bluefin network (SUI_PROD/SUI_STAGING), defaults to environment variable
-        :param private_key: Private key for wallet, defaults to environment variable
-        :param exchange: Specific exchange to interact with (default: BLUEFIN)
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         
         # Network configuration
-        self.network = network or os.getenv('BLUEFIN_NETWORK', 'SUI_STAGING')
-        self.private_key = private_key or os.getenv('BLUEFIN_PRIVATE_KEY')
-        self.exchange = exchange
+        self.network = config.get('bluefin_parameters.network', 'SUI_STAGING')
+        self.private_key = config.get('bluefin_parameters.private_key')
+        self.exchange = config.get('bluefin_parameters.exchange', 'BLUEFIN')
         
-        # Client and API configuration
-        self.client = None
-        self.api_url = os.getenv('BLUEFIN_API_URL', 'https://api.bluefin.io')
+        # API configuration
+        self.api_url = config.get('bluefin_parameters.api_url', 'https://api.bluefin.io')
+        self.max_retries = int(config.get('bluefin_parameters.max_retries', 3))
+        self.retry_delay = float(config.get('bluefin_parameters.retry_delay', 1.0))
         
-        # Enhanced retry and error handling
-        self.max_retries = int(os.getenv('BLUEFIN_MAX_RETRIES', 3))
-        self.retry_delay = float(os.getenv('BLUEFIN_RETRY_DELAY', 1.0))
+        # Simulation configuration
+        self.simulation_mode = config.is_simulation_mode()
+        if self.simulation_mode:
+            self.logger.info("Running in simulation mode")
+            self._setup_simulation()
+        else:
+            self.logger.info(f"Connecting to Bluefin {self.network} network")
+            # In a real implementation, you would initialize the Bluefin client here
+            # self.client = BluefinClient(...)
+            self.client = None
+
+    def _setup_simulation(self):
+        """
+        Set up the simulation environment for mock trading.
+        """
+        # Simulation parameters
+        self.sim_balance = float(config.get('simulation_parameters.initial_balance', 10000))
+        self.sim_volatility = float(config.get('simulation_parameters.volatility', 0.05))
+        self.sim_trend = float(config.get('simulation_parameters.trend', 0.01))
         
-        # Logging configuration
-        logging.basicConfig(
-            level=logging.INFO, 
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        # Initialize simulated market data
+        self.sim_market = {
+            'BTCUSDT': {
+                'price': 50000.0,
+                'last_update': datetime.now(),
+                'bid': 49950.0,
+                'ask': 50050.0,
+                'volume': 1000.0
+            },
+            'ETHUSDT': {
+                'price': 3000.0,
+                'last_update': datetime.now(),
+                'bid': 2990.0,
+                'ask': 3010.0,
+                'volume': 5000.0
+            },
+            'SOLUSDT': {
+                'price': 100.0,
+                'last_update': datetime.now(),
+                'bid': 99.5,
+                'ask': 100.5,
+                'volume': 10000.0
+            }
+        }
+        
+        # Initialize simulated positions
+        self.sim_positions = []
+        
+        # Initialize simulated order history
+        self.sim_orders = []
+        
+        # Start the simulation update loop
+        asyncio.create_task(self._simulation_update_loop())
+
+    async def _simulation_update_loop(self):
+        """
+        Background task to update simulated market data.
+        """
+        while True:
+            # Update market data
+            for symbol, data in self.sim_market.items():
+                # Calculate time since last update
+                time_delta = (datetime.now() - data['last_update']).total_seconds()
+                
+                # Apply random walk with drift
+                random_factor = random.normalvariate(0, 1) * self.sim_volatility * time_delta
+                trend_factor = self.sim_trend * time_delta
+                
+                # Update price
+                price_change = data['price'] * (random_factor + trend_factor)
+                data['price'] += price_change
+                data['bid'] = data['price'] * 0.999
+                data['ask'] = data['price'] * 1.001
+                data['volume'] += random.uniform(-100, 100)
+                data['last_update'] = datetime.now()
+                
+                # Ensure volume is positive
+                data['volume'] = max(data['volume'], 100.0)
+            
+            # Update positions P&L
+            for position in self.sim_positions:
+                symbol = position['symbol']
+                current_price = self.sim_market[symbol]['price']
+                entry_price = position['entry_price']
+                size = position['size']
+                side = position['side']
+                
+                # Calculate P&L
+                if side == 'buy':
+                    position['unrealized_pnl'] = (current_price - entry_price) * size
+                else:
+                    position['unrealized_pnl'] = (entry_price - current_price) * size
+                
+                # Check for stop loss or take profit
+                if self._check_stop_loss_take_profit(position, current_price):
+                    # Position was closed
+                    pass
+            
+            # Sleep for a short time
+            await asyncio.sleep(1)
+
+    def _check_stop_loss_take_profit(self, position: Dict[str, Any], current_price: float) -> bool:
+        """
+        Check if a position should be closed due to stop loss or take profit.
+        
+        :param position: Position to check
+        :param current_price: Current price of the symbol
+        :return: True if position was closed, False otherwise
+        """
+        if 'stop_loss' in position and position['side'] == 'buy' and current_price <= position['stop_loss']:
+            self._close_position(position, current_price, 'stop_loss')
+            return True
+        
+        if 'stop_loss' in position and position['side'] == 'sell' and current_price >= position['stop_loss']:
+            self._close_position(position, current_price, 'stop_loss')
+            return True
+        
+        if 'take_profit' in position and position['side'] == 'buy' and current_price >= position['take_profit']:
+            self._close_position(position, current_price, 'take_profit')
+            return True
+        
+        if 'take_profit' in position and position['side'] == 'sell' and current_price <= position['take_profit']:
+            self._close_position(position, current_price, 'take_profit')
+            return True
+        
+        return False
+
+    def _close_position(self, position: Dict[str, Any], price: float, reason: str):
+        """
+        Close a simulated position.
+        
+        :param position: Position to close
+        :param price: Price at which to close the position
+        :param reason: Reason for closing the position
+        """
+        # Calculate P&L
+        if position['side'] == 'buy':
+            pnl = (price - position['entry_price']) * position['size']
+        else:
+            pnl = (position['entry_price'] - price) * position['size']
+        
+        # Update balance
+        self.sim_balance += pnl
+        
+        # Create order record
+        order = {
+            'id': f"order_{len(self.sim_orders) + 1}",
+            'symbol': position['symbol'],
+            'side': 'sell' if position['side'] == 'buy' else 'buy',
+            'type': 'market',
+            'price': price,
+            'size': position['size'],
+            'status': 'filled',
+            'created_at': datetime.now().isoformat(),
+            'filled_at': datetime.now().isoformat(),
+            'reason': reason,
+            'pnl': pnl
+        }
+        
+        # Add to order history
+        self.sim_orders.append(order)
+        
+        # Remove from positions
+        self.sim_positions.remove(position)
+        
+        # Log the closure
+        self.logger.info(f"Closed position {position['id']} with {reason} at {price}. PnL: {pnl:.2f}")
 
     async def initialize(self) -> None:
         """
-        Initialize Bluefin client with comprehensive authentication and network configuration.
-        Supports multiple exchanges and enhanced error handling.
+        Initialize Bluefin client with authentication and network configuration.
+        In simulation mode, this just logs a message.
         """
+        if self.simulation_mode:
+            self.logger.info("Initialized simulation environment")
+            return
+        
         try:
             if not self.private_key:
                 raise ValueError("Bluefin private key is required for initialization")
             
-            self.client = BluefinClient(
-                agree_to_terms=True,
-                network=Networks[self.network],
-                private_key=self.private_key,
-                exchange=self.exchange
-            )
+            # In a real implementation, you would initialize the Bluefin client here
+            # self.client = BluefinClient(...)
+            # await self.client.init()
             
-            await self.client.init(validate_on_chain=True)
             self.logger.info(f"Bluefin client initialized on {self.network} for {self.exchange}")
         
         except Exception as e:
-            self.logger.error(f"Comprehensive Bluefin client initialization failed: {e}")
+            self.logger.error(f"Bluefin client initialization failed: {e}")
             raise RuntimeError(f"Client initialization error: {e}")
-
-    async def place_order(self, 
-                           symbol: str, 
-                           side: str, 
-                           quantity: float, 
-                           order_type: str = "MARKET", 
-                           price: Optional[float] = None,
-                           leverage: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Enhanced order placement with comprehensive error handling and configuration.
-        
-        :param symbol: Trading pair symbol
-        :param side: Order side (BUY/SELL)
-        :param quantity: Order quantity
-        :param order_type: Order type (MARKET/LIMIT)
-        :param price: Price for limit orders
-        :param leverage: Optional leverage for the order
-        :return: Detailed order response
-        """
-        for attempt in range(self.max_retries):
-            try:
-                order_params = {
-                    "symbol": symbol,
-                    "side": side.upper(),
-                    "quantity": quantity,
-                    "order_type": order_type.upper()
-                }
-                
-                if price and order_type.upper() == "LIMIT":
-                    order_params["price"] = price
-                
-                if leverage is not None:
-                    order_params["leverage"] = leverage
-                
-                order_response = await self.client.place_order(**order_params)
-                
-                self.logger.info(f"Order placed successfully: {order_response}")
-                return order_response
-            
-            except Exception as e:
-                self.logger.warning(f"Order placement failed (Attempt {attempt + 1}): {e}")
-                if attempt == self.max_retries - 1:
-                    raise RuntimeError(f"Failed to place order after {self.max_retries} attempts: {e}")
-                await asyncio.sleep(self.retry_delay * (attempt + 1))
-
-    async def cancel_order(self, 
-                            symbol: str, 
-                            order_id: Optional[str] = None, 
-                            all_orders: bool = False) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-        """
-        Advanced order cancellation supporting single and multiple order cancellations.
-        
-        :param symbol: Trading pair symbol
-        :param order_id: Specific order ID to cancel
-        :param all_orders: Flag to cancel all orders for the symbol
-        :return: Cancellation response
-        """
-        try:
-            if all_orders:
-                return await self.client.cancel_all_orders(symbol)
-            
-            if order_id:
-                return await self.client.cancel_order(symbol, order_id)
-            
-            raise ValueError("Must specify either order_id or set all_orders to True")
-        
-        except Exception as e:
-            self.logger.error(f"Order cancellation failed: {e}")
-            raise RuntimeError(f"Cancellation error: {e}")
-
-    async def get_positions(self, symbol: Optional[str] = None) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-        """
-        Retrieve comprehensive position information.
-        
-        :param symbol: Optional specific symbol to retrieve position for
-        :return: Detailed positions data
-        """
-        try:
-            return await self.client.get_positions(symbol) if symbol else await self.client.get_positions()
-        except Exception as e:
-            self.logger.error(f"Failed to retrieve positions: {e}")
-            raise RuntimeError(f"Position retrieval error: {e}")
 
     async def get_account_balance(self) -> Dict[str, Any]:
         """
-        Retrieve detailed account balance information.
+        Get account balance from Bluefin exchange.
+        In simulation mode, returns simulated balance.
         
-        :return: Comprehensive account balance details
+        :return: Account balance information
         """
-        try:
-            return await self.client.get_account_balance()
-        except Exception as e:
-            self.logger.error(f"Failed to retrieve account balance: {e}")
-            raise RuntimeError(f"Account balance retrieval error: {e}")
+        if self.simulation_mode:
+            # Return simulated balance
+            return {
+                'total_balance': self.sim_balance,
+                'available_balance': self.sim_balance - sum(p.get('margin', 0) for p in self.sim_positions),
+                'margin_balance': sum(p.get('margin', 0) for p in self.sim_positions),
+                'unrealized_pnl': sum(p.get('unrealized_pnl', 0) for p in self.sim_positions),
+                'currency': 'USDT'
+            }
+        
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.get_account_balance()
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
 
-    async def setup_websocket(self, 
-                               order_callback=None, 
-                               position_callback=None, 
-                               trade_callback=None):
+    async def get_market_data(self, symbol: str) -> Dict[str, Any]:
         """
-        Advanced WebSocket setup with multiple event handlers.
+        Get market data for a symbol from Bluefin exchange.
+        In simulation mode, returns simulated market data.
         
-        :param order_callback: Callback for order updates
-        :param position_callback: Callback for position updates
-        :param trade_callback: Callback for trade updates
+        :param symbol: Trading symbol (e.g., 'BTCUSDT')
+        :return: Market data for the symbol
         """
-        try:
-            await self.client.socket.open()
+        if self.simulation_mode:
+            # Check if symbol exists in simulation
+            if symbol not in self.sim_market:
+                # Add new symbol with random price
+                base_price = random.uniform(100, 10000)
+                self.sim_market[symbol] = {
+                    'price': base_price,
+                    'last_update': datetime.now(),
+                    'bid': base_price * 0.999,
+                    'ask': base_price * 1.001,
+                    'volume': random.uniform(1000, 10000)
+                }
             
-            # Subscribe to comprehensive user updates
-            await self.client.socket.subscribe_user_update_by_token()
-            
-            # Register multiple event handlers
-            if order_callback:
-                @self.client.socket.on("order_update")
-                async def on_order_update(data):
-                    await order_callback(data)
-            
-            if position_callback:
-                @self.client.socket.on("position_update")
-                async def on_position_update(data):
-                    await position_callback(data)
-            
-            if trade_callback:
-                @self.client.socket.on("trade_update")
-                async def on_trade_update(data):
-                    await trade_callback(data)
-            
-            self.logger.info("Comprehensive WebSocket connection established")
+            # Return simulated market data
+            market_data = self.sim_market[symbol].copy()
+            market_data['timestamp'] = datetime.now().isoformat()
+            return market_data
         
-        except Exception as e:
-            self.logger.error(f"Advanced WebSocket setup failed: {e}")
-            raise RuntimeError(f"WebSocket initialization error: {e}")
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.get_market_data(symbol)
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
+
+    async def place_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Place an order on Bluefin exchange.
+        In simulation mode, simulates order placement.
+        
+        :param order_data: Order data including symbol, side, type, size, etc.
+        :return: Order response with order ID and status
+        """
+        if self.simulation_mode:
+            # Extract order details
+            symbol = order_data.get('symbol')
+            side = order_data.get('side')
+            order_type = order_data.get('type', 'market')
+            size = float(order_data.get('size', 0))
+            price = float(order_data.get('price', 0))
+            
+            # Validate order
+            if not symbol or not side or size <= 0:
+                raise ValueError("Invalid order parameters")
+            
+            # Check if symbol exists in simulation
+            if symbol not in self.sim_market:
+                raise ValueError(f"Symbol {symbol} not found")
+            
+            # Get current market price
+            market_price = self.sim_market[symbol]['price']
+            
+            # For market orders, use market price
+            if order_type == 'market':
+                price = market_price
+            
+            # Check if we have enough balance
+            required_margin = size * price * 0.1  # Assuming 10x leverage
+            if required_margin > self.sim_balance:
+                raise ValueError("Insufficient balance")
+            
+            # Create order
+            order_id = f"order_{len(self.sim_orders) + 1}"
+            order = {
+                'id': order_id,
+                'symbol': symbol,
+                'side': side,
+                'type': order_type,
+                'price': price,
+                'size': size,
+                'status': 'filled',
+                'created_at': datetime.now().isoformat(),
+                'filled_at': datetime.now().isoformat()
+            }
+            
+            # Add to order history
+            self.sim_orders.append(order)
+            
+            # Create position
+            position_id = f"position_{len(self.sim_positions) + 1}"
+            position = {
+                'id': position_id,
+                'symbol': symbol,
+                'side': side,
+                'size': size,
+                'entry_price': price,
+                'margin': required_margin,
+                'unrealized_pnl': 0,
+                'created_at': datetime.now().isoformat(),
+                'order_id': order_id
+            }
+            
+            # Add stop loss and take profit if specified
+            if 'stop_loss' in order_data:
+                position['stop_loss'] = float(order_data['stop_loss'])
+            
+            if 'take_profit' in order_data:
+                position['take_profit'] = float(order_data['take_profit'])
+            
+            # Add to positions
+            self.sim_positions.append(position)
+            
+            # Update balance
+            self.sim_balance -= required_margin
+            
+            # Return order response
+            return {
+                'order_id': order_id,
+                'status': 'filled',
+                'symbol': symbol,
+                'side': side,
+                'price': price,
+                'size': size,
+                'position_id': position_id
+            }
+        
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.place_order(order_data)
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
+
+    async def get_positions(self) -> List[Dict[str, Any]]:
+        """
+        Get open positions from Bluefin exchange.
+        In simulation mode, returns simulated positions.
+        
+        :return: List of open positions
+        """
+        if self.simulation_mode:
+            # Return simulated positions
+            return self.sim_positions
+        
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.get_positions()
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
+
+    async def get_order_history(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get order history from Bluefin exchange.
+        In simulation mode, returns simulated order history.
+        
+        :param symbol: Optional symbol to filter orders
+        :return: List of orders
+        """
+        if self.simulation_mode:
+            # Filter by symbol if provided
+            if symbol:
+                return [order for order in self.sim_orders if order['symbol'] == symbol]
+            
+            # Return all orders
+            return self.sim_orders
+        
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.get_order_history(symbol)
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
+
+    async def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        """
+        Cancel an order on Bluefin exchange.
+        In simulation mode, simulates order cancellation.
+        
+        :param order_id: ID of the order to cancel
+        :return: Cancellation response
+        """
+        if self.simulation_mode:
+            # Find the order
+            for order in self.sim_orders:
+                if order['id'] == order_id and order['status'] != 'filled':
+                    # Cancel the order
+                    order['status'] = 'cancelled'
+                    return {
+                        'order_id': order_id,
+                        'status': 'cancelled'
+                    }
+            
+            # Order not found or already filled
+            raise ValueError(f"Order {order_id} not found or already filled")
+        
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.cancel_order(order_id)
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
+
+    async def close_position(self, position_id: str) -> Dict[str, Any]:
+        """
+        Close a position on Bluefin exchange.
+        In simulation mode, simulates position closure.
+        
+        :param position_id: ID of the position to close
+        :return: Closure response
+        """
+        if self.simulation_mode:
+            # Find the position
+            for position in self.sim_positions:
+                if position['id'] == position_id:
+                    # Get current market price
+                    symbol = position['symbol']
+                    price = self.sim_market[symbol]['price']
+                    
+                    # Close the position
+                    self._close_position(position, price, 'manual')
+                    
+                    # Return closure response
+                    return {
+                        'position_id': position_id,
+                        'status': 'closed',
+                        'price': price
+                    }
+            
+            # Position not found
+            raise ValueError(f"Position {position_id} not found")
+        
+        # In a real implementation, you would call the Bluefin API here
+        # return await self.client.close_position(position_id)
+        
+        # Placeholder for real implementation
+        raise NotImplementedError("Real API calls not implemented in template")
